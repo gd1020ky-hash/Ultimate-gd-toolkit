@@ -1,0 +1,46 @@
+name: Build Android
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [Android64, Android32]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: geode-sdk/build-geode-mod@main
+        id: build
+        with:
+          sdk: latest
+          target: ${{ matrix.target }}
+      - name: Name the file
+        run: cp "${{ steps.build.outputs.build-output }}" "gd-toolkit-${{ matrix.target }}.geode"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gd-toolkit-${{ matrix.target }}
+          path: gd-toolkit-${{ matrix.target }}.geode
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: GD Toolkit build ${{ github.run_number }}
+          body: Download gd-toolkit-Android64.geode (most phones) or gd-toolkit-Android32.geode, then copy it to the Geode mods folder.
+          files: out/*.geode
